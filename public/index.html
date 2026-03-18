@@ -670,9 +670,15 @@
     </div>
     <div class="field" id="assign-field">
       <label>Zuweisen an</label>
-      <select id="new-assign">
+      <select id="new-assign" onchange="onAssignChange()">
         <option value="Familie">Familie</option>
       </select>
+    </div>
+    <div id="visible-field" style="display:none;margin-top:4px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:0.875rem;color:var(--text-2);cursor:pointer;font-weight:400;text-transform:none;letter-spacing:normal;">
+        <input type="checkbox" id="visible-to-owner" style="width:16px;height:16px;cursor:pointer;">
+        Bei mir anzeigen (zum Nachverfolgen)
+      </label>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
@@ -820,7 +826,8 @@
         body: JSON.stringify({
           title,
           note: noteEl.value,
-          assignedTo: document.getElementById('assign-field').style.display === 'none' ? '' : assignEl.value
+          assignedTo: document.getElementById('assign-field').style.display === 'none' ? '' : assignEl.value,
+          visibleToOwner: document.getElementById('visible-to-owner').checked
         })
       });
       if (!res.ok) { const e = await res.json(); alert('Fehler: ' + (e.error || res.status)); return; }
@@ -843,6 +850,18 @@
       const updated = await res.json();
       const idx = todos.findIndex(t => t._id === id);
       if (idx !== -1) todos[idx] = updated;
+      renderTodos();
+    } catch { alert('Fehler.'); }
+  }
+
+  async function handoff(id) {
+    try {
+      await fetch(`/api/todos/${id}`, {
+        method: 'PATCH',
+        headers: headers(),
+        body: JSON.stringify({ visibleToOwner: false })
+      });
+      todos = todos.filter(t => t._id !== id);
       renderTodos();
     } catch { alert('Fehler.'); }
   }
@@ -925,12 +944,17 @@
       }
 
       const canDelete = t.owner === me || t.assignedTo === me || isFamilie;
+      const showHandoff = isAssignedByMe && t.visibleToOwner;
 
       return `
       <div class="${cardClass}">
         <div class="todo-top">
           <div class="todo-title">${escHtml(t.title)}</div>
           <div class="todo-actions">
+            ${showHandoff ? `
+            <button class="btn-ghost" style="padding:4px 10px;font-size:0.75rem;border-radius:6px;" onclick="handoff('${t._id}')" title="Übergeben — aus meiner Liste entfernen">
+              ✓ Übergeben
+            </button>` : ''}
             ${canDelete ? `
             <button class="btn-danger-ghost" onclick="deleteTodo('${t._id}')" title="Löschen">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -965,6 +989,13 @@
   }
 
   // ── Modal ─────────────────────────────────────────
+  function onAssignChange() {
+    const val = document.getElementById('new-assign').value;
+    // Show "Bei mir anzeigen" only when assigning to a person (not Familie)
+    document.getElementById('visible-field').style.display =
+      (val && val !== 'Familie') ? 'block' : 'none';
+  }
+
   function openModal(withAssign) {
     const assignField = document.getElementById('assign-field');
     const assignEl = document.getElementById('new-assign');
@@ -979,6 +1010,8 @@
       title.textContent = 'Neue Aufgabe';
       assignEl.selectedIndex = 0;
     }
+    document.getElementById('visible-field').style.display = 'none';
+    document.getElementById('visible-to-owner').checked = false;
 
     document.getElementById('modal-backdrop').classList.add('open');
     setTimeout(() => document.getElementById('new-title').focus(), 50);

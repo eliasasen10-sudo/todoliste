@@ -18,9 +18,10 @@ const todoSchema = new mongoose.Schema({
   title:      { type: String, required: true },
   note:       { type: String, default: '' },
   status:     { type: String, enum: ['Offen', 'In Bearbeitung', 'Erledigt'], default: 'Offen' },
-  owner:      { type: String, required: true },
-  assignedTo: { type: String, default: '' },
-  createdAt:  { type: Date, default: Date.now }
+  owner:          { type: String, required: true },
+  assignedTo:     { type: String, default: '' },
+  visibleToOwner: { type: Boolean, default: false },
+  createdAt:      { type: Date, default: Date.now }
 });
 
 const Todo = mongoose.model('Todo', todoSchema);
@@ -72,7 +73,12 @@ app.get('/api/todos', async (req, res) => {
   const user = getUser(req, res);
   if (!user) return;
   const todos = await Todo.find({
-    $or: [{ owner: user }, { assignedTo: user }, { assignedTo: 'Familie' }]
+    $or: [
+      { owner: user, assignedTo: '' },                                          // personal
+      { owner: user, assignedTo: { $nin: ['', 'Familie'] }, visibleToOwner: true }, // assigned, still tracking
+      { assignedTo: user },                                                     // assigned to me
+      { assignedTo: 'Familie' }                                                 // familie
+    ]
   }).sort({ createdAt: -1 });
   res.json(todos);
 });
@@ -86,7 +92,8 @@ app.post('/api/todos', async (req, res) => {
     title: title.trim(),
     note: (note || '').trim(),
     owner: user,
-    assignedTo: assignedTo || ''
+    assignedTo: assignedTo || '',
+    visibleToOwner: req.body.visibleToOwner === true
   });
   res.status(201).json(todo);
 });
@@ -102,6 +109,7 @@ app.patch('/api/todos/:id', async (req, res) => {
     update.status = status;
   }
   if (assignedTo !== undefined) update.assignedTo = assignedTo;
+  if (req.body.visibleToOwner !== undefined) update.visibleToOwner = req.body.visibleToOwner;
   const todo = await Todo.findOneAndUpdate(
     { _id: req.params.id, $or: [{ owner: user }, { assignedTo: user }, { assignedTo: 'Familie' }] },
     update,
