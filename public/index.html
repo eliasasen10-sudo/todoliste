@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Todoliste</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f5f7;
+      --surface: #ffffff;
+      --surface-2: #f9f9fb;
+      --border: #e5e5ea;
+      --text: #1d1d1f;
+      --text-2: #6e6e73;
+      --text-3: #aeaeb2;
+      --accent: #0071e3;
+      --accent-hover: #0077ed;
+      --danger: #ff3b30;
+      --radius: 14px;
+      --radius-sm: 8px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06);
+      --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      --status-offen: #ff9f0a;
+      --status-inbearbeitung: #0071e3;
+      --status-erledigt: #30d158;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── AUTH ─────────────────────────────────────── */
+    #auth-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .auth-card {
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 360px;
+      box-shadow: var(--shadow-lg);
+      text-align: center;
+      animation: fadeUp 0.4s ease;
+    }
+
+    .auth-icon {
+      width: 64px;
+      height: 64px;
+      background: var(--accent);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+    }
+
+    .auth-icon svg {
+      width: 32px;
+      height: 32px;
+      color: white;
+    }
+
+    .auth-card h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: -0.025em;
+      margin-bottom: 6px;
+    }
+
+    .auth-card p {
+      color: var(--text-2);
+      font-size: 0.9rem;
+      margin-bottom: 32px;
+    }
+
+    .auth-input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: var(--font);
+      font-size: 1rem;
+      background: var(--surface-2);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+      text-align: center;
+      letter-spacing: 0.2em;
+    }
+
+    .auth-input:focus {
+      border-color: var(--accent);
+    }
+
+    .auth-input.error {
+      border-color: var(--danger);
+      animation: shake 0.3s ease;
+    }
+
+    .auth-error {
+      color: var(--danger);
+      font-size: 0.8rem;
+      margin-top: 8px;
+      min-height: 1.2em;
+    }
+
+    /* ── APP ──────────────────────────────────────── */
+    #app-screen {
+      display: none;
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 40px 20px 80px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    /* ── BUTTONS ──────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 18px;
+      border-radius: 980px;
+      border: none;
+      font-family: var(--font);
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s, opacity 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover { background: var(--accent-hover); }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-2);
+      border: 1.5px solid var(--border);
+    }
+
+    .btn-ghost:hover {
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .btn-danger-ghost {
+      background: transparent;
+      color: var(--danger);
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      border: none;
+      font-family: var(--font);
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      opacity: 0.6;
+      transition: opacity 0.15s, background 0.15s;
+    }
+
+    .btn-danger-ghost:hover {
+      opacity: 1;
+      background: rgba(255,59,48,0.07);
+    }
+
+    /* ── ADD FORM ─────────────────────────────────── */
+    .add-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: 28px;
+      border: 1.5px solid var(--border);
+    }
+
+    .add-card h2 {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-3);
+      margin-bottom: 14px;
+    }
+
+    .field {
+      margin-bottom: 12px;
+    }
+
+    .field input,
+    .field textarea {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: var(--font);
+      font-size: 0.9375rem;
+      background: var(--surface-2);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+      resize: none;
+    }
+
+    .field input:focus,
+    .field textarea:focus {
+      border-color: var(--accent);
+    }
+
+    .field textarea {
+      min-height: 60px;
+      line-height: 1.5;
+    }
+
+    .field input::placeholder,
+    .field textarea::placeholder {
+      color: var(--text-3);
+    }
+
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 4px;
+    }
+
+    /* ── FILTER BAR ───────────────────────────────── */
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 6px 14px;
+      border-radius: 980px;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      font-family: var(--font);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--text-2);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .filter-btn:hover { color: var(--text); border-color: #c7c7cc; }
+
+    .filter-btn.active {
+      background: var(--text);
+      color: white;
+      border-color: var(--text);
+    }
+
+    /* ── TODO LIST ────────────────────────────────── */
+    #todo-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .todo-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+      border: 1.5px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      animation: fadeUp 0.25s ease;
+      transition: box-shadow 0.2s;
+    }
+
+    .todo-card:hover {
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
+    }
+
+    .todo-card.status-erledigt {
+      opacity: 0.6;
+    }
+
+    .todo-card.status-erledigt .todo-title {
+      text-decoration: line-through;
+      color: var(--text-2);
+    }
+
+    .todo-main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .todo-title {
+      font-size: 0.9375rem;
+      font-weight: 500;
+      line-height: 1.35;
+      margin-bottom: 3px;
+    }
+
+    .todo-note {
+      font-size: 0.8125rem;
+      color: var(--text-2);
+      line-height: 1.45;
+      margin-bottom: 10px;
+    }
+
+    .todo-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* ── STATUS BADGE / SELECT ────────────────────── */
+    .status-select {
+      appearance: none;
+      -webkit-appearance: none;
+      border: none;
+      font-family: var(--font);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 980px;
+      cursor: pointer;
+      outline: none;
+      transition: filter 0.15s;
+    }
+
+    .status-select:hover { filter: brightness(0.95); }
+
+    .status-select[data-status="Offen"] {
+      background: rgba(255,159,10,0.12);
+      color: #b57900;
+    }
+
+    .status-select[data-status="In Bearbeitung"] {
+      background: rgba(0,113,227,0.10);
+      color: #0055b3;
+    }
+
+    .status-select[data-status="Erledigt"] {
+      background: rgba(48,209,88,0.12);
+      color: #1a8c3a;
+    }
+
+    .todo-date {
+      font-size: 0.72rem;
+      color: var(--text-3);
+    }
+
+    .todo-actions {
+      flex-shrink: 0;
+      padding-top: 2px;
+    }
+
+    /* ── EMPTY STATE ──────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 64px 20px;
+      color: var(--text-3);
+    }
+
+    .empty-state svg {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 16px;
+      opacity: 0.3;
+    }
+
+    .empty-state p {
+      font-size: 0.9rem;
+    }
+
+    /* ── MODAL ────────────────────────────────────── */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.25);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+      animation: backdropIn 0.2s ease;
+    }
+
+    .modal {
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 28px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: var(--shadow-lg);
+      animation: modalIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .modal-header h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .modal-close {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      background: var(--bg);
+      color: var(--text-2);
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+
+    .modal-close:hover { background: var(--border); }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 20px;
+    }
+
+    @keyframes backdropIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.92) translateY(8px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    /* ── ANIMATIONS ───────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25%       { transform: translateX(-6px); }
+      75%       { transform: translateX(6px); }
+    }
+
+    /* ── RESPONSIVE ───────────────────────────────── */
+    @media (max-width: 480px) {
+      #app-screen { padding: 24px 16px 60px; }
+      header h1 { font-size: 1.6rem; }
+      .auth-card { padding: 36px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    </div>
+    <h1>Zugang</h1>
+    <p>Bitte gib den Zugangscode ein</p>
+    <input
+      type="password"
+      id="code-input"
+      class="auth-input"
+      placeholder="····"
+      maxlength="20"
+      autocomplete="off"
+    >
+    <div class="auth-error" id="auth-error"></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:20px;justify-content:center;" onclick="login()">
+      Entsperren
+    </button>
+  </div>
+</div>
+
+<!-- APP SCREEN -->
+<div id="app-screen">
+  <header>
+    <h1>Todoliste</h1>
+    <button class="btn btn-ghost" onclick="logout()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+      Abmelden
+    </button>
+  </header>
+
+  <!-- New Task Button -->
+  <button class="btn btn-primary" style="margin-bottom:24px;" onclick="openModal()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+    Neue Aufgabe
+  </button>
+
+  <!-- Filter -->
+  <div class="filter-bar">
+    <button class="filter-btn active" onclick="setFilter('all', this)">Alle</button>
+    <button class="filter-btn" onclick="setFilter('Offen', this)">Offen</button>
+    <button class="filter-btn" onclick="setFilter('In Bearbeitung', this)">In Bearbeitung</button>
+    <button class="filter-btn" onclick="setFilter('Erledigt', this)">Erledigt</button>
+  </div>
+
+  <!-- Todo List -->
+  <div id="todo-list"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modal-backdrop" onclick="onBackdropClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Neue Aufgabe</h2>
+      <button class="modal-close" onclick="closeModal()" aria-label="Schließen">✕</button>
+    </div>
+    <div class="field">
+      <input type="text" id="new-title" placeholder="Titel" maxlength="200" onkeydown="if(event.key==='Enter')addTodo()">
+    </div>
+    <div class="field">
+      <textarea id="new-note" placeholder="Notiz (optional)" maxlength="500" rows="3"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="addTodo()">Hinzufügen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const ACCESS_CODE = '1234';
+  const SESSION_KEY = 'todo_session';
+  let todos = [];
+  let currentFilter = 'all';
+
+  // ── AUTH ─────────────────────────────────────────
+  function login() {
+    const val = document.getElementById('code-input').value;
+    const input = document.getElementById('code-input');
+    const err = document.getElementById('auth-error');
+    if (val === ACCESS_CODE) {
+      localStorage.setItem(SESSION_KEY, 'active');
+      showApp();
+    } else {
+      input.classList.add('error');
+      err.textContent = 'Falscher Code. Versuche es erneut.';
+      setTimeout(() => input.classList.remove('error'), 400);
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem(SESSION_KEY);
+    document.getElementById('app-screen').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('code-input').value = '';
+    document.getElementById('auth-error').textContent = '';
+  }
+
+  function showApp() {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'block';
+    loadTodos();
+  }
+
+  // Allow Enter key on auth input
+  document.getElementById('code-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') login();
+  });
+
+  // Check session on load
+  if (localStorage.getItem(SESSION_KEY) === 'active') {
+    showApp();
+  }
+
+  // ── MODAL ────────────────────────────────────────
+  function openModal() {
+    document.getElementById('modal-backdrop').classList.add('open');
+    setTimeout(() => document.getElementById('new-title').focus(), 50);
+  }
+
+  function closeModal() {
+    document.getElementById('modal-backdrop').classList.remove('open');
+    document.getElementById('new-title').value = '';
+    document.getElementById('new-note').value  = '';
+  }
+
+  function onBackdropClick(e) {
+    if (e.target === document.getElementById('modal-backdrop')) closeModal();
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+  });
+
+  // ── API ───────────────────────────────────────────
+  async function loadTodos() {
+    try {
+      const res = await fetch('/api/todos');
+      todos = await res.json();
+      renderTodos();
+    } catch {
+      renderError();
+    }
+  }
+
+  async function addTodo() {
+    const titleEl = document.getElementById('new-title');
+    const noteEl  = document.getElementById('new-note');
+    const title = titleEl.value.trim();
+    if (!title) {
+      titleEl.style.borderColor = 'var(--danger)';
+      setTimeout(() => titleEl.style.borderColor = '', 1200);
+      titleEl.focus();
+      return;
+    }
+    try {
+      const res = await fetch('/api/todos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, note: noteEl.value })
+      });
+      const todo = await res.json();
+      todos.unshift(todo);
+      closeModal();
+      renderTodos();
+    } catch { alert('Fehler beim Speichern.'); }
+  }
+
+  async function updateStatus(id, status) {
+    try {
+      const res = await fetch(`/api/todos/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      const updated = await res.json();
+      const idx = todos.findIndex(t => t.id === id);
+      if (idx !== -1) todos[idx] = updated;
+      renderTodos();
+    } catch { alert('Fehler beim Aktualisieren.'); }
+  }
+
+  async function deleteTodo(id) {
+    try {
+      await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+      todos = todos.filter(t => t.id !== id);
+      renderTodos();
+    } catch { alert('Fehler beim Löschen.'); }
+  }
+
+  // ── RENDER ────────────────────────────────────────
+  function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderTodos();
+  }
+
+  function filtered() {
+    if (currentFilter === 'all') return todos;
+    return todos.filter(t => t.status === currentFilter);
+  }
+
+  function formatDate(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  }
+
+  function renderTodos() {
+    const list = document.getElementById('todo-list');
+    const items = filtered();
+    if (!items.length) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="3"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+          <p>Keine Aufgaben${currentFilter !== 'all' ? ' in dieser Kategorie' : ''}.</p>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = items.map(t => {
+      const statusKey = t.status.replace(' ', '');
+      return `
+      <div class="todo-card status-${statusKey.toLowerCase()}" id="card-${t.id}">
+        <div class="todo-main">
+          <div class="todo-title">${escHtml(t.title)}</div>
+          ${t.note ? `<div class="todo-note">${escHtml(t.note)}</div>` : ''}
+          <div class="todo-meta">
+            <select
+              class="status-select"
+              data-status="${escHtml(t.status)}"
+              onchange="updateStatus('${t.id}', this.value); this.dataset.status = this.value;"
+            >
+              <option ${t.status === 'Offen'          ? 'selected' : ''}>Offen</option>
+              <option ${t.status === 'In Bearbeitung' ? 'selected' : ''}>In Bearbeitung</option>
+              <option ${t.status === 'Erledigt'       ? 'selected' : ''}>Erledigt</option>
+            </select>
+            <span class="todo-date">${formatDate(t.createdAt)}</span>
+          </div>
+        </div>
+        <div class="todo-actions">
+          <button class="btn-danger-ghost" onclick="deleteTodo('${t.id}')" title="Löschen">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              <path d="M10 11v6M14 11v6"/>
+            </svg>
+          </button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderError() {
+    document.getElementById('todo-list').innerHTML =
+      '<div class="empty-state"><p>Verbindungsfehler. Ist der Server erreichbar?</p></div>';
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+              .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+</script>
+</body>
+</html>
