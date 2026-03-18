@@ -192,6 +192,13 @@ app.patch('/api/todos/:id', async (req, res) => {
     update, { new: true }
   );
   if (!todo) return res.status(404).json({ error: 'Not found' });
+
+  // Notify owner when assignee marks as Erledigt
+  if (status === 'Erledigt' && todo.assignedTo === user && todo.owner !== user) {
+    const u = await TgUser.findOne({ member: todo.owner });
+    if (u) await sendTelegram(u.chatId, `✅ *${user}* hat deine zugewiesene Aufgabe erledigt.`);
+  }
+
   res.json(todo);
 });
 
