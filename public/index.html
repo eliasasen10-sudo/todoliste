@@ -823,13 +823,14 @@
           assignedTo: document.getElementById('assign-field').style.display === 'none' ? '' : assignEl.value
         })
       });
+      if (!res.ok) { const e = await res.json(); alert('Fehler: ' + (e.error || res.status)); return; }
       const todo = await res.json();
       const assignedTo = document.getElementById('assign-field').style.display === 'none' ? '' : assignEl.value;
       todos.unshift(todo);
       closeModal();
       if (assignedTo === 'Familie') switchTab('familie');
       renderTodos();
-    } catch { alert('Fehler beim Speichern.'); }
+    } catch (e) { alert('Fehler beim Speichern: ' + e.message); }
   }
 
   async function updateStatus(id, status) {

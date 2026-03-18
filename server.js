@@ -19,12 +19,42 @@ const todoSchema = new mongoose.Schema({
   note:       { type: String, default: '' },
   status:     { type: String, enum: ['Offen', 'In Bearbeitung', 'Erledigt'], default: 'Offen' },
   owner:      { type: String, required: true },
-  // assignedTo: person name | 'Familie' | '' (= personal)
   assignedTo: { type: String, default: '' },
   createdAt:  { type: Date, default: Date.now }
 });
 
 const Todo = mongoose.model('Todo', todoSchema);
+
+// ── DB Connection (cached for Vercel serverless) ──
+let isConnected = false;
+
+async function connectDB() {
+  if (isConnected) return;
+  await mongoose.connect(process.env.MONGODB_URI);
+  isConnected = true;
+  console.log('MongoDB connected');
+}
+
+// Ensure DB is connected before every request
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error('DB error:', err);
+    res.status(500).json({ error: 'Database connection failed' });
+  }
+});
+
+// ── Helper ────────────────────────────────────────
+function getUser(req, res) {
+  const user = req.headers['x-user'];
+  if (!user || !MEMBERS.includes(user)) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return null;
+  }
+  return user;
+}
 
 // ── Auth ──────────────────────────────────────────
 app.post('/api/login', (req, res) => {
@@ -37,32 +67,16 @@ app.post('/api/login', (req, res) => {
 
 app.get('/api/members', (req, res) => res.json(MEMBERS));
 
-// ── Helper ────────────────────────────────────────
-function getUser(req, res) {
-  const user = req.headers['x-user'];
-  if (!user || !MEMBERS.includes(user)) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return null;
-  }
-  return user;
-}
-
 // ── Todos ─────────────────────────────────────────
-// GET: own todos + assigned to me + Familie todos
 app.get('/api/todos', async (req, res) => {
   const user = getUser(req, res);
   if (!user) return;
   const todos = await Todo.find({
-    $or: [
-      { owner: user },
-      { assignedTo: user },
-      { assignedTo: 'Familie' }
-    ]
+    $or: [{ owner: user }, { assignedTo: user }, { assignedTo: 'Familie' }]
   }).sort({ createdAt: -1 });
   res.json(todos);
 });
 
-// POST: create todo
 app.post('/api/todos', async (req, res) => {
   const user = getUser(req, res);
   if (!user) return;
@@ -77,7 +91,6 @@ app.post('/api/todos', async (req, res) => {
   res.status(201).json(todo);
 });
 
-// PATCH: update status or assignedTo
 app.patch('/api/todos/:id', async (req, res) => {
   const user = getUser(req, res);
   if (!user) return;
@@ -98,7 +111,6 @@ app.patch('/api/todos/:id', async (req, res) => {
   res.json(todo);
 });
 
-// DELETE
 app.delete('/api/todos/:id', async (req, res) => {
   const user = getUser(req, res);
   if (!user) return;
@@ -111,12 +123,10 @@ app.delete('/api/todos/:id', async (req, res) => {
 });
 
 // ── Start ─────────────────────────────────────────
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('MongoDB connection error:', err));
-
 if (process.env.VERCEL !== '1') {
-  app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+  connectDB().then(() => {
+    app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+  });
 }
 
 module.exports = app;
