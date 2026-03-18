@@ -624,13 +624,24 @@
     <button class="tab-btn" id="tab-familie" onclick="switchTab('familie')">Familie</button>
   </div>
 
-  <!-- New Task Button -->
-  <button class="btn btn-primary" style="margin-bottom:20px;" onclick="openModal()">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-    </svg>
-    Neue Aufgabe
-  </button>
+  <!-- Buttons -->
+  <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+    <button class="btn btn-primary" onclick="openModal(false)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      Neue Aufgabe
+    </button>
+    <button class="btn btn-ghost" onclick="openModal(true)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+      Zuweisen
+    </button>
+  </div>
 
   <!-- Filter (only in Meine tab) -->
   <div class="filter-bar" id="filter-bar">
@@ -657,10 +668,10 @@
       <label>Notiz (optional)</label>
       <textarea id="new-note" placeholder="Zusätzliche Infos…" maxlength="500" rows="2"></textarea>
     </div>
-    <div class="field">
+    <div class="field" id="assign-field">
       <label>Zuweisen an</label>
       <select id="new-assign">
-        <option value="">Nur für mich</option>
+        <option value="">Person wählen…</option>
         <option value="Familie">🏠 Familie (für alle sichtbar)</option>
       </select>
     </div>
@@ -950,13 +961,21 @@
   }
 
   // ── Modal ─────────────────────────────────────────
-  function openModal() {
-    // Pre-select Familie tab if currently on Familie
-    if (currentTab === 'familie') {
-      document.getElementById('new-assign').value = 'Familie';
+  function openModal(withAssign) {
+    const assignField = document.getElementById('assign-field');
+    const assignEl = document.getElementById('new-assign');
+    const title = document.querySelector('.modal-header h2');
+
+    if (withAssign) {
+      assignField.style.display = 'block';
+      title.textContent = 'Zuweisen';
+      assignEl.value = currentTab === 'familie' ? 'Familie' : '';
     } else {
-      document.getElementById('new-assign').value = '';
+      assignField.style.display = 'none';
+      title.textContent = 'Neue Aufgabe';
+      assignEl.value = '';
     }
+
     document.getElementById('modal-backdrop').classList.add('open');
     setTimeout(() => document.getElementById('new-title').focus(), 50);
   }
