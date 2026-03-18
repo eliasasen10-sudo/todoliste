@@ -1,80 +1,61 @@
+require('dotenv').config();
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
+const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const TODOS_FILE = path.join(__dirname, 'todos.json');
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-function readTodos() {
-  try {
-    const data = fs.readFileSync(TODOS_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch {
-    return [];
-  }
-}
-
-function writeTodos(todos) {
-  fs.writeFileSync(TODOS_FILE, JSON.stringify(todos, null, 2), 'utf8');
-}
-
-// GET all todos
-app.get('/api/todos', (req, res) => {
-  res.json(readTodos());
+// ── Schema ────────────────────────────────────────
+const todoSchema = new mongoose.Schema({
+  title:     { type: String, required: true },
+  note:      { type: String, default: '' },
+  status:    { type: String, enum: ['Offen', 'In Bearbeitung', 'Erledigt'], default: 'Offen' },
+  createdAt: { type: Date, default: Date.now }
 });
 
-// POST new todo
-app.post('/api/todos', (req, res) => {
+const Todo = mongoose.model('Todo', todoSchema);
+
+// ── Routes ────────────────────────────────────────
+app.get('/api/todos', async (req, res) => {
+  const todos = await Todo.find().sort({ createdAt: -1 });
+  res.json(todos);
+});
+
+app.post('/api/todos', async (req, res) => {
   const { title, note } = req.body;
-  if (!title || !title.trim()) {
-    return res.status(400).json({ error: 'Title is required' });
-  }
-  const todos = readTodos();
-  const todo = {
-    id: Date.now().toString(),
-    title: title.trim(),
-    note: (note || '').trim(),
-    status: 'Offen',
-    createdAt: new Date().toISOString()
-  };
-  todos.unshift(todo);
-  writeTodos(todos);
+  if (!title || !title.trim()) return res.status(400).json({ error: 'Title is required' });
+  const todo = await Todo.create({ title: title.trim(), note: (note || '').trim() });
   res.status(201).json(todo);
 });
 
-// PATCH update status
-app.patch('/api/todos/:id', (req, res) => {
-  const { id } = req.params;
+app.patch('/api/todos/:id', async (req, res) => {
   const { status } = req.body;
-  const validStatuses = ['Offen', 'In Bearbeitung', 'Erledigt'];
-  if (!validStatuses.includes(status)) {
-    return res.status(400).json({ error: 'Invalid status' });
-  }
-  const todos = readTodos();
-  const idx = todos.findIndex(t => t.id === id);
-  if (idx === -1) return res.status(404).json({ error: 'Not found' });
-  todos[idx].status = status;
-  writeTodos(todos);
-  res.json(todos[idx]);
+  const valid = ['Offen', 'In Bearbeitung', 'Erledigt'];
+  if (!valid.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+  const todo = await Todo.findByIdAndUpdate(req.params.id, { status }, { new: true });
+  if (!todo) return res.status(404).json({ error: 'Not found' });
+  res.json(todo);
 });
 
-// DELETE todo
-app.delete('/api/todos/:id', (req, res) => {
-  const { id } = req.params;
-  const todos = readTodos();
-  const idx = todos.findIndex(t => t.id === id);
-  if (idx === -1) return res.status(404).json({ error: 'Not found' });
-  todos.splice(idx, 1);
-  writeTodos(todos);
+app.delete('/api/todos/:id', async (req, res) => {
+  const todo = await Todo.findByIdAndDelete(req.params.id);
+  if (!todo) return res.status(404).json({ error: 'Not found' });
   res.status(204).send();
 });
 
-app.listen(PORT, () => {
-  console.log(`Todo app running at http://localhost:${PORT}`);
-});
+// ── Start ─────────────────────────────────────────
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => {
+    console.log('MongoDB connected');
+    app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+  })
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  });
