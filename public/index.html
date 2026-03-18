@@ -595,7 +595,6 @@
         body: JSON.stringify({ code: val })
       });
       if (res.ok) {
-        localStorage.setItem(SESSION_KEY, 'active');
         showApp();
       } else {
         input.classList.add('error');
@@ -608,7 +607,6 @@
   }
 
   function logout() {
-    localStorage.removeItem(SESSION_KEY);
     document.getElementById('app-screen').style.display = 'none';
     document.getElementById('auth-screen').style.display = 'flex';
     document.getElementById('code-input').value = '';
@@ -626,10 +624,7 @@
     if (e.key === 'Enter') login();
   });
 
-  // Check session on load
-  if (localStorage.getItem(SESSION_KEY) === 'active') {
-    showApp();
-  }
+  // Always show auth on load
 
   // ── MODAL ────────────────────────────────────────
   function openModal() {
