@@ -63,20 +63,42 @@ async function sendTelegram(chatId, text) {
   } catch (e) { console.error('Telegram error:', e); }
 }
 
+function todoText(todo) {
+  let msg = '';
+  if (todo.title) msg += `*${todo.title}*`;
+  if (todo.title && todo.note) msg += `\n${todo.note}`;
+  if (!todo.title && todo.note) msg += `*${todo.note}*`;
+  return msg;
+}
+
 async function notifyAssigned(todo) {
   if (!todo.assignedTo || todo.assignedTo === '') return;
   if (todo.assignedTo === 'Familie') {
     const users = await TgUser.find({ member: { $ne: todo.owner } });
-    const title = todo.title || todo.note;
     for (const u of users) {
-      await sendTelegram(u.chatId, `🏠 *${todo.owner}* hat eine Familienaufgabe erstellt:\n\n*${title}*${todo.note && todo.title ? '\n' + todo.note : ''}`);
+      await sendTelegram(u.chatId, `🏠 *${todo.owner}* hat eine Familienaufgabe erstellt:\n\n${todoText(todo)}`);
     }
   } else {
     const u = await TgUser.findOne({ member: todo.assignedTo });
     if (u) {
-      const title = todo.title || todo.note;
-      await sendTelegram(u.chatId, `📋 *${todo.owner}* hat dir eine Aufgabe zugewiesen:\n\n*${title}*${todo.note && todo.title ? '\n' + todo.note : ''}`);
+      await sendTelegram(u.chatId, `📋 *${todo.owner}* hat dir eine Aufgabe zugewiesen:\n\n${todoText(todo)}`);
     }
+  }
+}
+
+async function notifyDeleted(todo, deletedBy) {
+  if (!todo.assignedTo || todo.assignedTo === '') return;
+  if (todo.assignedTo === 'Familie') {
+    const users = await TgUser.find({ member: { $ne: deletedBy } });
+    for (const u of users) {
+      await sendTelegram(u.chatId, `🗑 *${deletedBy}* hat eine Familienaufgabe gelöscht:\n\n${todoText(todo)}`);
+    }
+  } else if (todo.assignedTo !== deletedBy) {
+    const u = await TgUser.findOne({ member: todo.assignedTo });
+    if (u) await sendTelegram(u.chatId, `🗑 *${deletedBy}* hat eine zugewiesene Aufgabe gelöscht:\n\n${todoText(todo)}`);
+  } else if (todo.owner !== deletedBy) {
+    const u = await TgUser.findOne({ member: todo.owner });
+    if (u) await sendTelegram(u.chatId, `🗑 *${deletedBy}* hat deine Aufgabe gelöscht:\n\n${todoText(todo)}`);
   }
 }
 
@@ -186,6 +208,7 @@ app.delete('/api/todos/:id', async (req, res) => {
     $or: [{ owner: user }, { assignedTo: user }, { assignedTo: 'Familie' }]
   });
   if (!todo) return res.status(404).json({ error: 'Not found' });
+  await notifyDeleted(todo, user);
   res.status(204).send();
 });
 
