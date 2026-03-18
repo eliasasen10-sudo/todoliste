@@ -883,9 +883,11 @@
     const noteEl   = document.getElementById('new-note');
     const assignEl = document.getElementById('new-assign');
     const title = titleEl.value.trim();
-    if (!title) {
+    const note  = noteEl.value.trim();
+    if (!title && !note) {
       titleEl.style.borderColor = 'var(--danger)';
-      setTimeout(() => titleEl.style.borderColor = '', 1200);
+      noteEl.style.borderColor  = 'var(--danger)';
+      setTimeout(() => { titleEl.style.borderColor = ''; noteEl.style.borderColor = ''; }, 1200);
       titleEl.focus();
       return;
     }
@@ -1048,7 +1050,7 @@
       return `
       <div class="${cardClass}">
         <div class="todo-top">
-          <div class="todo-title">${escHtml(t.title)}</div>
+          <div class="todo-title">${escHtml(t.title || t.note)}</div>
           <div class="todo-actions">
             ${showHandoff ? `
             <button class="btn-ghost" style="padding:4px 10px;font-size:0.75rem;border-radius:6px;" onclick="handoff('${t._id}')" title="Übergeben — aus meiner Liste entfernen">
@@ -1064,7 +1066,7 @@
             </button>` : ''}
           </div>
         </div>
-        ${t.note ? `<div class="todo-note">${escHtml(t.note)}</div>` : ''}
+        ${t.note && t.title ? `<div class="todo-note">${escHtml(t.note)}</div>` : ''}
         ${badge}
         <div class="todo-meta">
           <select

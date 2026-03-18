@@ -15,7 +15,7 @@ const MEMBERS = ['Marc', 'Julian', 'Elias', 'Nikola', 'Dietmar'];
 
 // ── Schema ────────────────────────────────────────
 const todoSchema = new mongoose.Schema({
-  title:      { type: String, required: true },
+  title:      { type: String, default: '' },
   note:       { type: String, default: '' },
   status:     { type: String, enum: ['Offen', 'In Bearbeitung', 'Erledigt'], default: 'Offen' },
   owner:          { type: String, required: true },
@@ -92,7 +92,7 @@ app.post('/api/todos', async (req, res) => {
   const user = getUser(req, res);
   if (!user) return;
   const { title, note, assignedTo } = req.body;
-  if (!title?.trim()) return res.status(400).json({ error: 'Title required' });
+  if (!title?.trim() && !req.body.note?.trim()) return res.status(400).json({ error: 'Titel oder Notiz erforderlich' });
   const todo = await Todo.create({
     title: title.trim(),
     note: (note || '').trim(),
