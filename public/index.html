@@ -1176,9 +1176,7 @@
   init().then(() => {
     const saved = localStorage.getItem('todo_user');
     if (saved) {
-      session.user = saved;
-      selectedPerson = saved;
-      showApp();
+      selectPerson(saved);
     }
   });
 </script>
