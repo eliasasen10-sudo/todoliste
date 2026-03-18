@@ -817,13 +817,17 @@
       const res = await fetch('/api/todos', {
         method: 'POST',
         headers: headers(),
-        body: JSON.stringify({ title, note: noteEl.value, assignedTo: assignEl.value })
+        body: JSON.stringify({
+          title,
+          note: noteEl.value,
+          assignedTo: document.getElementById('assign-field').style.display === 'none' ? '' : assignEl.value
+        })
       });
       const todo = await res.json();
+      const assignedTo = document.getElementById('assign-field').style.display === 'none' ? '' : assignEl.value;
       todos.unshift(todo);
       closeModal();
-      // Switch to relevant tab
-      if (assignEl.value === 'Familie') switchTab('familie');
+      if (assignedTo === 'Familie') switchTab('familie');
       renderTodos();
     } catch { alert('Fehler beim Speichern.'); }
   }
@@ -968,11 +972,11 @@
     if (withAssign) {
       assignField.style.display = 'block';
       title.textContent = 'Zuweisen';
-      assignEl.value = currentTab === 'familie' ? 'Familie' : '';
+      assignEl.selectedIndex = 0;
     } else {
       assignField.style.display = 'none';
       title.textContent = 'Neue Aufgabe';
-      assignEl.value = '';
+      assignEl.selectedIndex = 0;
     }
 
     document.getElementById('modal-backdrop').classList.add('open');
@@ -983,7 +987,7 @@
     document.getElementById('modal-backdrop').classList.remove('open');
     document.getElementById('new-title').value = '';
     document.getElementById('new-note').value  = '';
-    document.getElementById('new-assign').value = '';
+    document.getElementById('new-assign').selectedIndex = 0;
   }
 
   function onBackdropClick(e) {
