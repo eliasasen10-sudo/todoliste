@@ -87,13 +87,8 @@ async function notifyAssigned(todo) {
 }
 
 async function notifyDeleted(todo, deletedBy) {
-  if (!todo.assignedTo || todo.assignedTo === '') return;
-  if (todo.assignedTo === 'Familie') {
-    const users = await TgUser.find({ member: { $ne: deletedBy } });
-    for (const u of users) {
-      await sendTelegram(u.chatId, `🗑 *${deletedBy}* hat eine Familienaufgabe gelöscht:\n\n${todoText(todo)}`);
-    }
-  } else if (todo.assignedTo !== deletedBy) {
+  if (!todo.assignedTo || todo.assignedTo === '' || todo.assignedTo === 'Familie') return;
+  if (todo.assignedTo !== deletedBy) {
     const u = await TgUser.findOne({ member: todo.assignedTo });
     if (u) await sendTelegram(u.chatId, `🗑 *${deletedBy}* hat eine zugewiesene Aufgabe gelöscht:\n\n${todoText(todo)}`);
   } else if (todo.owner !== deletedBy) {
