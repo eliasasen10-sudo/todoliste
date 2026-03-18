@@ -21,7 +21,12 @@ const todoSchema = new mongoose.Schema({
   owner:          { type: String, required: true },
   assignedTo:     { type: String, default: '' },
   visibleToOwner: { type: Boolean, default: false },
-  createdAt:      { type: Date, default: Date.now }
+  createdAt:      { type: Date, default: Date.now },
+  comments: [{
+    author:    { type: String, required: true },
+    text:      { type: String, required: true },
+    createdAt: { type: Date, default: Date.now }
+  }]
 });
 
 const Todo = mongoose.model('Todo', todoSchema);
@@ -128,6 +133,23 @@ app.delete('/api/todos/:id', async (req, res) => {
   });
   if (!todo) return res.status(404).json({ error: 'Not found' });
   res.status(204).send();
+});
+
+// POST comment on Familie todo
+app.post('/api/todos/:id/comment', async (req, res) => {
+  const user = getUser(req, res);
+  if (!user) return;
+  const { text } = req.body;
+  if (!text?.trim()) return res.status(400).json({ error: 'Text required' });
+  const words = text.trim().split(/\s+/).length;
+  if (words > 10) return res.status(400).json({ error: 'Max 10 Wörter' });
+  const todo = await Todo.findOneAndUpdate(
+    { _id: req.params.id, assignedTo: 'Familie' },
+    { $push: { comments: { author: user, text: text.trim() } } },
+    { new: true }
+  );
+  if (!todo) return res.status(404).json({ error: 'Not found' });
+  res.json(todo);
 });
 
 // ── Start ─────────────────────────────────────────

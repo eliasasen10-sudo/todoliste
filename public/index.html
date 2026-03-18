@@ -527,6 +527,76 @@
       margin-top: 20px;
     }
 
+    /* ── COMMENTS ────────────────────────────────── */
+    .comments-section {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .comment-item {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 6px;
+      font-size: 0.8rem;
+    }
+
+    .comment-author {
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .comment-text {
+      color: var(--text-2);
+    }
+
+    .comment-input-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .comment-input {
+      flex: 1;
+      padding: 7px 10px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: var(--font);
+      font-size: 0.8125rem;
+      background: var(--surface-2);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .comment-input:focus { border-color: var(--accent); }
+
+    .comment-submit {
+      padding: 7px 12px;
+      border-radius: var(--radius-sm);
+      border: none;
+      background: var(--accent);
+      color: white;
+      font-family: var(--font);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+
+    .comment-submit:hover { background: #0077ed; }
+
+    .word-count {
+      font-size: 0.7rem;
+      color: var(--text-3);
+      text-align: right;
+      margin-top: 2px;
+    }
+
+    .word-count.over { color: var(--danger); }
+
     /* ── EMPTY STATE ──────────────────────────────── */
     .empty-state {
       text-align: center;
@@ -854,6 +924,35 @@
     } catch { alert('Fehler.'); }
   }
 
+  function updateWordCount(id) {
+    const input = document.getElementById(`ci-${id}`);
+    const wc = document.getElementById(`wc-${id}`);
+    if (!input || !wc) return;
+    const words = input.value.trim() ? input.value.trim().split(/\s+/).length : 0;
+    wc.textContent = `${words} / 10 Wörter`;
+    wc.classList.toggle('over', words > 10);
+  }
+
+  async function addComment(id) {
+    const input = document.getElementById(`ci-${id}`);
+    const text = input.value.trim();
+    if (!text) return;
+    const words = text.split(/\s+/).length;
+    if (words > 10) { input.style.borderColor = 'var(--danger)'; setTimeout(() => input.style.borderColor = '', 1200); return; }
+    try {
+      const res = await fetch(`/api/todos/${id}/comment`, {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ text })
+      });
+      if (!res.ok) { alert('Fehler beim Kommentar.'); return; }
+      const updated = await res.json();
+      const idx = todos.findIndex(t => t._id === id);
+      if (idx !== -1) todos[idx] = updated;
+      renderTodos();
+    } catch { alert('Fehler.'); }
+  }
+
   async function handoff(id) {
     try {
       await fetch(`/api/todos/${id}`, {
@@ -979,6 +1078,27 @@
           </select>
           <span class="todo-date">${formatDate(t.createdAt)}</span>
         </div>
+        ${isFamilie ? `
+        <div class="comments-section">
+          ${(t.comments||[]).map(c => `
+            <div class="comment-item">
+              <span class="comment-author">${escHtml(c.author)}:</span>
+              <span class="comment-text">${escHtml(c.text)}</span>
+            </div>
+          `).join('')}
+          <div class="comment-input-row">
+            <input
+              class="comment-input"
+              id="ci-${t._id}"
+              placeholder="Kommentar…"
+              maxlength="120"
+              oninput="updateWordCount('${t._id}')"
+              onkeydown="if(event.key==='Enter')addComment('${t._id}')"
+            >
+            <button class="comment-submit" onclick="addComment('${t._id}')">Senden</button>
+          </div>
+          <div class="word-count" id="wc-${t._id}">0 / 10 Wörter</div>
+        </div>` : ''}
       </div>`;
     }).join('');
   }
