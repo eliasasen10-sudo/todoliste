@@ -100,7 +100,7 @@ app.post('/api/telegram', async (req, res) => {
 
 // Set webhook (call once after deploy)
 app.get('/api/set-webhook', async (req, res) => {
-  const url = `${req.protocol}://${req.get('host')}/api/telegram`;
+  const url = `https://${req.get('host')}/api/telegram`;
   const r = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/setWebhook?url=${encodeURIComponent(url)}`);
   const data = await r.json();
   res.json(data);
