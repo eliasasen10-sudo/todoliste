@@ -13,11 +13,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const MEMBERS = ['Marc', 'Julian', 'Elias', 'Nikola', 'Dietmar'];
 
-// ── Schema ────────────────────────────────────────
+// ── Schemas ───────────────────────────────────────
 const todoSchema = new mongoose.Schema({
-  title:      { type: String, default: '' },
-  note:       { type: String, default: '' },
-  status:     { type: String, enum: ['Offen', 'In Bearbeitung', 'Erledigt'], default: 'Offen' },
+  title:          { type: String, default: '' },
+  note:           { type: String, default: '' },
+  status:         { type: String, enum: ['Offen', 'In Bearbeitung', 'Erledigt'], default: 'Offen' },
   owner:          { type: String, required: true },
   assignedTo:     { type: String, default: '' },
   visibleToOwner: { type: Boolean, default: false },
@@ -29,9 +29,15 @@ const todoSchema = new mongoose.Schema({
   }]
 });
 
-const Todo = mongoose.model('Todo', todoSchema);
+const tgSchema = new mongoose.Schema({
+  member: { type: String, unique: true },
+  chatId: String
+});
 
-// ── DB Connection (cached for Vercel serverless) ──
+const Todo = mongoose.model('Todo', todoSchema);
+const TgUser = mongoose.model('TgUser', tgSchema);
+
+// ── DB Connection ─────────────────────────────────
 let isConnected = false;
 
 async function connectDB() {
@@ -41,15 +47,63 @@ async function connectDB() {
   console.log('MongoDB connected');
 }
 
-// Ensure DB is connected before every request
 app.use(async (req, res, next) => {
+  try { await connectDB(); next(); }
+  catch (err) { res.status(500).json({ error: 'Database connection failed' }); }
+});
+
+// ── Telegram ──────────────────────────────────────
+async function sendTelegram(chatId, text) {
   try {
-    await connectDB();
-    next();
-  } catch (err) {
-    console.error('DB error:', err);
-    res.status(500).json({ error: 'Database connection failed' });
+    await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' })
+    });
+  } catch (e) { console.error('Telegram error:', e); }
+}
+
+async function notifyAssigned(todo) {
+  if (!todo.assignedTo || todo.assignedTo === '') return;
+  if (todo.assignedTo === 'Familie') {
+    const users = await TgUser.find({ member: { $ne: todo.owner } });
+    const title = todo.title || todo.note;
+    for (const u of users) {
+      await sendTelegram(u.chatId, `🏠 *${todo.owner}* hat eine Familienaufgabe erstellt:\n\n*${title}*${todo.note && todo.title ? '\n' + todo.note : ''}`);
+    }
+  } else {
+    const u = await TgUser.findOne({ member: todo.assignedTo });
+    if (u) {
+      const title = todo.title || todo.note;
+      await sendTelegram(u.chatId, `📋 *${todo.owner}* hat dir eine Aufgabe zugewiesen:\n\n*${title}*${todo.note && todo.title ? '\n' + todo.note : ''}`);
+    }
   }
+}
+
+// Telegram webhook
+app.post('/api/telegram', async (req, res) => {
+  const msg = req.body.message;
+  if (!msg) return res.sendStatus(200);
+  const text   = (msg.text || '').trim();
+  const chatId = String(msg.chat.id);
+  if (text.startsWith('/start')) {
+    const member = text.split(' ')[1];
+    if (MEMBERS.includes(member)) {
+      await TgUser.findOneAndUpdate({ member }, { member, chatId }, { upsert: true });
+      await sendTelegram(chatId, `✅ Hallo *${member}*\\! Du bekommst jetzt Benachrichtigungen für deine Todos.`);
+    } else {
+      await sendTelegram(chatId, `Bitte schreib: /start Name\n\nVerfügbare Namen:\n${MEMBERS.join(', ')}`);
+    }
+  }
+  res.sendStatus(200);
+});
+
+// Set webhook (call once after deploy)
+app.get('/api/set-webhook', async (req, res) => {
+  const url = `${req.protocol}://${req.get('host')}/api/telegram`;
+  const r = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/setWebhook?url=${encodeURIComponent(url)}`);
+  const data = await r.json();
+  res.json(data);
 });
 
 // ── Helper ────────────────────────────────────────
@@ -79,10 +133,10 @@ app.get('/api/todos', async (req, res) => {
   if (!user) return;
   const todos = await Todo.find({
     $or: [
-      { owner: user, assignedTo: '' },                                          // personal
-      { owner: user, assignedTo: { $nin: ['', 'Familie'] }, visibleToOwner: true }, // assigned, still tracking
-      { assignedTo: user },                                                     // assigned to me
-      { assignedTo: 'Familie' }                                                 // familie
+      { owner: user, assignedTo: '' },
+      { owner: user, assignedTo: { $nin: ['', 'Familie'] }, visibleToOwner: true },
+      { assignedTo: user },
+      { assignedTo: 'Familie' }
     ]
   }).sort({ createdAt: -1 });
   res.json(todos);
@@ -92,14 +146,15 @@ app.post('/api/todos', async (req, res) => {
   const user = getUser(req, res);
   if (!user) return;
   const { title, note, assignedTo } = req.body;
-  if (!title?.trim() && !req.body.note?.trim()) return res.status(400).json({ error: 'Titel oder Notiz erforderlich' });
+  if (!title?.trim() && !note?.trim()) return res.status(400).json({ error: 'Titel oder Notiz erforderlich' });
   const todo = await Todo.create({
-    title: title.trim(),
-    note: (note || '').trim(),
+    title: (title || '').trim(),
+    note:  (note  || '').trim(),
     owner: user,
     assignedTo: assignedTo || '',
     visibleToOwner: req.body.visibleToOwner === true
   });
+  await notifyAssigned(todo);
   res.status(201).json(todo);
 });
 
@@ -117,8 +172,7 @@ app.patch('/api/todos/:id', async (req, res) => {
   if (req.body.visibleToOwner !== undefined) update.visibleToOwner = req.body.visibleToOwner;
   const todo = await Todo.findOneAndUpdate(
     { _id: req.params.id, $or: [{ owner: user }, { assignedTo: user }, { assignedTo: 'Familie' }] },
-    update,
-    { new: true }
+    update, { new: true }
   );
   if (!todo) return res.status(404).json({ error: 'Not found' });
   res.json(todo);
@@ -135,14 +189,12 @@ app.delete('/api/todos/:id', async (req, res) => {
   res.status(204).send();
 });
 
-// POST comment on Familie todo
 app.post('/api/todos/:id/comment', async (req, res) => {
   const user = getUser(req, res);
   if (!user) return;
   const { text } = req.body;
   if (!text?.trim()) return res.status(400).json({ error: 'Text required' });
-  const words = text.trim().split(/\s+/).length;
-  if (words > 10) return res.status(400).json({ error: 'Max 10 Wörter' });
+  if (text.trim().split(/\s+/).length > 10) return res.status(400).json({ error: 'Max 10 Wörter' });
   const todo = await Todo.findOneAndUpdate(
     { _id: req.params.id, assignedTo: 'Familie' },
     { $push: { comments: { author: user, text: text.trim() } } },
