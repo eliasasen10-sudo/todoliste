@@ -664,7 +664,11 @@
         onkeydown="if(event.key==='Enter')login()"
       >
       <div class="auth-error" id="auth-error"></div>
-      <button class="btn btn-primary" style="width:100%;margin-top:16px;justify-content:center;" onclick="login()">
+      <label style="display:flex;align-items:center;gap:8px;font-size:0.875rem;color:var(--text-2);cursor:pointer;margin-top:14px;">
+        <input type="checkbox" id="remember-me" style="width:16px;height:16px;cursor:pointer;">
+        Angemeldet bleiben
+      </label>
+      <button class="btn btn-primary" style="width:100%;margin-top:12px;justify-content:center;" onclick="login()">
         Entsperren
       </button>
     </div>
@@ -812,6 +816,7 @@
   async function login() {
     const input = document.getElementById('code-input');
     const err = document.getElementById('auth-error');
+    const remember = document.getElementById('remember-me').checked;
     try {
       const res = await fetch('/api/login', {
         method: 'POST',
@@ -821,6 +826,11 @@
       if (res.ok) {
         const data = await res.json();
         session.user = data.user;
+        if (remember) {
+          localStorage.setItem('todo_user', data.user);
+        } else {
+          localStorage.removeItem('todo_user');
+        }
         showApp();
       } else {
         input.classList.add('error');
@@ -835,6 +845,7 @@
   function logout() {
     session.user = null;
     todos = [];
+    localStorage.removeItem('todo_user');
     document.getElementById('app-screen').style.display = 'none';
     document.getElementById('auth-screen').style.display = 'flex';
     backToPersons();
@@ -1162,7 +1173,14 @@
                     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
-  init();
+  init().then(() => {
+    const saved = localStorage.getItem('todo_user');
+    if (saved) {
+      session.user = saved;
+      selectedPerson = saved;
+      showApp();
+    }
+  });
 </script>
 </body>
 </html>
