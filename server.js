@@ -76,12 +76,12 @@ async function notifyAssigned(todo) {
   if (todo.assignedTo === 'Familie') {
     const users = await TgUser.find({ member: { $ne: todo.owner } });
     for (const u of users) {
-      await sendTelegram(u.chatId, `🏠 *${todo.owner}* hat eine Familienaufgabe erstellt:\n\n${todoText(todo)}`);
+      await sendTelegram(u.chatId, `🏠 *${todo.owner}* hat eine neue Familienaufgabe erstellt.`);
     }
   } else {
     const u = await TgUser.findOne({ member: todo.assignedTo });
     if (u) {
-      await sendTelegram(u.chatId, `📋 *${todo.owner}* hat dir eine Aufgabe zugewiesen:\n\n${todoText(todo)}`);
+      await sendTelegram(u.chatId, `📋 *${todo.owner}* hat dir eine Aufgabe zugewiesen.`);
     }
   }
 }
@@ -90,10 +90,10 @@ async function notifyDeleted(todo, deletedBy) {
   if (!todo.assignedTo || todo.assignedTo === '' || todo.assignedTo === 'Familie') return;
   if (todo.assignedTo !== deletedBy) {
     const u = await TgUser.findOne({ member: todo.assignedTo });
-    if (u) await sendTelegram(u.chatId, `🗑 *${deletedBy}* hat eine zugewiesene Aufgabe gelöscht:\n\n${todoText(todo)}`);
+    if (u) await sendTelegram(u.chatId, `🗑 *${deletedBy}* hat eine dir zugewiesene Aufgabe gelöscht.`);
   } else if (todo.owner !== deletedBy) {
     const u = await TgUser.findOne({ member: todo.owner });
-    if (u) await sendTelegram(u.chatId, `🗑 *${deletedBy}* hat deine Aufgabe gelöscht:\n\n${todoText(todo)}`);
+    if (u) await sendTelegram(u.chatId, `🗑 *${deletedBy}* hat deine zugewiesene Aufgabe gelöscht.`);
   }
 }
 
