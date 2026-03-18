@@ -579,23 +579,31 @@
 </div>
 
 <script>
-  const ACCESS_CODE = '1234';
   const SESSION_KEY = 'todo_session';
   let todos = [];
   let currentFilter = 'all';
 
   // ── AUTH ─────────────────────────────────────────
-  function login() {
-    const val = document.getElementById('code-input').value;
+  async function login() {
     const input = document.getElementById('code-input');
     const err = document.getElementById('auth-error');
-    if (val === ACCESS_CODE) {
-      localStorage.setItem(SESSION_KEY, 'active');
-      showApp();
-    } else {
-      input.classList.add('error');
-      err.textContent = 'Falscher Code. Versuche es erneut.';
-      setTimeout(() => input.classList.remove('error'), 400);
+    const val = input.value;
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: val })
+      });
+      if (res.ok) {
+        localStorage.setItem(SESSION_KEY, 'active');
+        showApp();
+      } else {
+        input.classList.add('error');
+        err.textContent = 'Falscher Code. Versuche es erneut.';
+        setTimeout(() => input.classList.remove('error'), 400);
+      }
+    } catch {
+      err.textContent = 'Verbindungsfehler.';
     }
   }
 

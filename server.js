@@ -21,6 +21,16 @@ const todoSchema = new mongoose.Schema({
 
 const Todo = mongoose.model('Todo', todoSchema);
 
+// ── Auth ──────────────────────────────────────────
+app.post('/api/login', (req, res) => {
+  const { code } = req.body;
+  if (code === process.env.ACCESS_CODE) {
+    res.json({ ok: true });
+  } else {
+    res.status(401).json({ ok: false });
+  }
+});
+
 // ── Routes ────────────────────────────────────────
 app.get('/api/todos', async (req, res) => {
   const todos = await Todo.find().sort({ createdAt: -1 });
