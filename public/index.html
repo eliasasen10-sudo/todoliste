@@ -671,8 +671,7 @@
     <div class="field" id="assign-field">
       <label>Zuweisen an</label>
       <select id="new-assign">
-        <option value="">Person wählen…</option>
-        <option value="Familie">🏠 Familie (für alle sichtbar)</option>
+        <option value="Familie">Familie</option>
       </select>
     </div>
     <div class="modal-actions">
@@ -778,7 +777,7 @@
 
     // Populate assign dropdown with other members
     const sel = document.getElementById('new-assign');
-    sel.innerHTML = '<option value="">Nur für mich</option><option value="Familie">🏠 Familie (für alle sichtbar)</option>';
+    sel.innerHTML = '<option value="Familie">Familie</option>';
     members.filter(m => m !== session.user).forEach(m => {
       const opt = document.createElement('option');
       opt.value = m;
